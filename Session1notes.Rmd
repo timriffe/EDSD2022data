@@ -168,6 +168,92 @@ gapminder %>%
 
 # `summarize()`
 
+`summarize()` is different from `mutate()` in that it can change the rows, and we usually use it for aggregation. And that usually happens within groups.
+```{r}
+gapminder %>% 
+  clean_names() %>% 
+  group_by(country) %>% 
+  summarize(gdp_cumulative = sum(gdp_percap * pop) * 5) %>% 
+  ungroup() %>% 
+  arrange(-gdp_cumulative)
+```
+
+Above we calculate the total gdp over the second half of the 20th century. Note we scale the 5-year groups in the sum, so that it's a proper annual amount being summed. Assuming a step function because we're lazy.
+
+Here we demonstrate the same sort of aggregation, aiming to calculate the global gdp using the unfiltered version of the gapminder data, but upon visualizing it we see some irregularities that likely are due to some countries having annual interpolations and others not.
+```{r}
+gapminder_unfiltered %>% 
+  clean_names() %>% 
+  group_by(year) %>% 
+  summarize(gdp_global = sum(gdp_percap * pop)) %>% 
+  
+  ggplot(aes(x = year, y = gdp_global)) +
+  geom_line() + 
+  geom_smooth(method = 'lm')
+```
+
+Which countries only have 5-year data?
+```{r}
+gapminder_unfiltered %>%
+  clean_names() %>% 
+  group_by(country) %>% 
+  filter(!any(year == 1951)) %>% 
+  pull(country) %>% 
+  as.character() %>% 
+  unique()
+```
+
+We conclude that Hans Rosling took HMD data for some countries and some WPP selection for the others.
+
+# pivoting
+
+To make data wider, use `pivot_wider()`. Names get concatenated
+```{r}
+gapminder %>% 
+  clean_names() %>% 
+  pivot_wider(names_from = year,
+              values_from = c(pop, life_exp, gdp_percap))
+```
+
+To make data longer use `pivot_longer()`
+
+```{r}
+gapminder %>% 
+  clean_names() %>% 
+  pivot_longer(c(pop, life_exp, gdp_percap),
+               names_to = "variable",
+               values_to = "value") %>% 
+  pivot_wider(names_from = variable,
+              values_from = value)
+```
+
+A more complicated example getting from wide back to long / tidy. In this case it's a little tricky because names have underscores in them sometimes, so we specify a different separator (`":"`), then we pivot to *very long*, separate columns on the `:` and then pivot back to the original form. That's convoluted, I admit. But, let's try to swallow that sometimes data wrangling makes us do uncomfortable gymnastics for the sake of getting the job done. And you should know that there is no job that you cannot do. There is no dataset that can defeat you.
+
+```{r}
+gapminder %>% 
+  clean_names() %>% 
+  pivot_wider(names_from = year, 
+              values_from = c(pop, life_exp, gdp_percap),
+              names_sep = ":") %>% 
+  pivot_longer(-c(1,2),
+               names_to = "var_year",
+               values_to = "value") %>% 
+  separate(col = var_year, into = c("variable","year"), sep = ":") %>% 
+  pivot_wider(names_from = variable,
+              values_from = value)
+```
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
