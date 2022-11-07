@@ -48,13 +48,13 @@ This index is to be updated as materials are finalized. It's more for posterity 
 7. [UN fertility example](Session1#examples)
 
 
-<!-- [Session 2](Session2) (Tuesday, 9 Nov) -->
+[Session 2](Session2) (Tuesday, 8 Nov) 
 
-<!-- 1. [Introduction](Session2#introduction) -->
-<!-- 2. [Reading a fixed width file](Session2#reading-a-fixed-width-file) -->
-<!-- 3. [Redistribute missing time of day](Session2#redistribute-missing-time-of-day) -->
-<!-- 4. [Visualize it: surface](Session2#visualize-it-surface) -->
-<!-- 5. [Visualize it: ridgeplot](Session2#visualize-it-ridgeplot) -->
+1. [Introduction](Session2#introduction) 
+2. [Reading a fixed width file](Session2#reading-a-fixed-width-file) 
+3. [Redistribute missing time of day](Session2#redistribute-missing-time-of-day) 
+4. [Visualize it: surface](Session2#visualize-it-surface) 
+5. [Visualize it: ridgeplot](Session2#visualize-it-ridgeplot) 
 
 <!-- [Session 3](Session3) (Wednesday, 10 Nov) -->
 
