@@ -447,11 +447,16 @@ ASFR <- ASFR %>%
                values_to = "asfr") %>% 
   mutate(Age = as.integer(Age),
          asfr = asfr / 1000) %>% 
+  filter(!is.na(asfr)) %>% 
   group_by(Country, Year) %>% 
   mutate(TFR = sum(asfr, na.rm = TRUE) * 5,
-         MAB = sum((5 * asfr) * (Age + 2.5), na.rm = TRUE) / TFR) %>%
+         MAB = sum((5 * asfr) * (Age + 2.5), na.rm = TRUE) / TFR,
+         # how many rows in this subset?
+         n = n()) %>%
   ungroup() %>% 
-  filter(TFR > 0)  # ASFR up top gets what comes out here
+  # just keep usable subsets
+  filter(TFR > 0, 
+         n > 4)  # ASFR up top gets what comes out here
 ```
 
 What method do we use to split these data to single ages?
@@ -500,36 +505,41 @@ plot(mono_graduate(Age5 = chunk$Age,
 Great now we have a spline function, let's see if we can figure out how to use it in a pipeline.
 
 ```{r, message=FALSE}
-ASFR <- ASFR %>% 
- 	group_by(Country, ISO, Year) %>% 
-    do(data = mono_graduate(Age5 = .$Age, asfr5 = .$asfr)) %>% 
- 	unnest(cols = c(data)) %>% 
-  group_by(Country, Year) %>%
-  mutate(TFR = sum(asfr),
-         MAB = sum(asfr * (Age+.5))/TFR)
+ASFR1 <-
+  ASFR %>% 
+  group_by(Country, ISO, Year) %>% 
+  group_modify(~mono_graduate(.x$Age, .x$asfr)) %>% 
+  ungroup() 
 
-nrow(ASFR) # yup it's bigger now
+nrow(ASFR)
+nrow(ASFR1) # yup it's bigger now
 ```
 
-Great, the trick is to be able to return data chunks in a new kind of column called a list column. Having a list column means you have nested data, however, we can get it back to flat tidy format by `unnest()`ing. Note that we lost TFR and MAB in this operation. A cheap way to keep them would have been to incldue them in the first `group_by()` statement, as I did for `ISO` (`ISO` and `Country` are redundant). Each subset now has single ages 15-49. We don't know yet whether there were any pathological cases. Let's make a scatterplot of MAB by TFR to find out.
+Each subset now has single ages 15-49. We don't know yet whether there were any pathological cases. Let's make a scatterplot of MAB by TFR to find out.
 
 ```{r}
 #install.packages("ggpointdensity")
 library(ggpointdensity)
 library(colorspace)
-ASFR %>% 
-  filter(Age == 30,
-         MAB > 20) %>% 
+ASFR1 <-
+  ASFR1 %>% 
+  group_by(Country, ISO, Year) %>% 
+  mutate(MAB = sum(Age * asfr) / sum(asfr),
+            TFR = sum(asfr),
+            .groups = "drop") 
+ASFR1 %>% 
+  filter(Age == 30) %>% 
   ggplot(mapping = aes(x = MAB, y = TFR)) +
   geom_pointdensity() + 
   scale_color_continuous_sequential(palette = "Reds")
+
 ```
 
 Now we start with the exercise. We bin TFRs into some intervals, let's just say .25 or so. This can happen in a `mutate()` call, and we do it by subtracting the modulo using `%%` (super awesome operator). Next step is to group by `TFRint` and pick out the minumum and maximum MAB in each interval band.
 
 ```{r}
 
-ASFRex <- ASFR %>% 
+ASFRex <- ASFR1 %>% 
   filter(MAB > 20) %>% 
   mutate(TFRint = TFR - TFR %% .25) %>% 
   group_by(TFRint) %>% 

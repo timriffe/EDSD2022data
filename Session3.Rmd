@@ -1,0 +1,248 @@
+---
+pagetitle: "Session 3"
+title: | 
+  | Data Wrangling for EDSDers
+  | \vspace{1.5cm} \LARGE\emph{Combining datasets}
+author: |
+  | 8-11 Nov, 2021
+  | Tim Riffe
+  | Universidad del País Vasco \& Ikerbasque (Basque Foundation for Science)
+date: "10 Nov, 2021"
+output:
+  html_document:
+    number_sections: yes
+    toc: yes
+params:
+  output_dir: "../EDSD2021data/docs"
+header-includes:
+- \usepackage{titling}
+- \pretitle{\begin{center}\includegraphics[trim=0 0 0 8cm, width=6cm, ]{assets/MPIDR_square_color.pdf}\\[\bigskipamount]}
+- \posttitle{\end{center}}
+bibliography: references.bib
+---
+
+
+
+<a href="https://github.com/timriffe/EDSD2021data" class="github-corner" aria-label="View source on GitHub"><svg width="80" height="80" viewBox="0 0 250 250" style="fill:#70B7FD; color:#fff; position: absolute; top: 0; border: 0; right: 0;" aria-hidden="true"><path d="M0,0 L115,115 L130,115 L142,142 L250,250 L250,0 Z"></path><path d="M128.3,109.0 C113.8,99.7 119.0,89.6 119.0,89.6 C122.0,82.7 120.5,78.6 120.5,78.6 C119.2,72.0 123.4,76.3 123.4,76.3 C127.3,80.9 125.5,87.3 125.5,87.3 C122.9,97.6 130.6,101.9 134.4,103.2" fill="currentColor" style="transform-origin: 130px 106px;" class="octo-arm"></path><path d="M115.0,115.0 C114.9,115.1 118.7,116.5 119.8,115.4 L133.7,101.6 C136.9,99.2 139.9,98.4 142.2,98.6 C133.8,88.0 127.5,74.4 143.8,58.0 C148.5,53.4 154.0,51.2 159.7,51.0 C160.3,49.4 163.2,43.6 171.4,40.1 C171.4,40.1 176.1,42.5 178.8,56.2 C183.1,58.6 187.2,61.8 190.9,65.4 C194.5,69.0 197.7,73.2 200.1,77.6 C213.8,80.2 216.3,84.9 216.3,84.9 C212.7,93.1 206.9,96.0 205.4,96.6 C205.1,102.4 203.0,107.8 198.3,112.5 C181.9,128.9 168.3,122.5 157.7,114.1 C157.9,116.9 156.7,120.9 152.7,124.9 L141.0,136.5 C139.8,137.7 141.6,141.9 141.8,141.8 Z" fill="currentColor" class="octo-body"></path></svg></a><style>.github-corner:hover .octo-arm{animation:octocat-wave 560ms ease-in-out}@keyframes octocat-wave{0%,100%{transform:rotate(0)}20%,60%{transform:rotate(-25deg)}40%,80%{transform:rotate(10deg)}}@media (max-width:500px){.github-corner:hover .octo-arm{animation:none}.github-corner .octo-arm{animation:octocat-wave 560ms ease-in-out}}</style>
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Introduction
+
+In this script weŕe going to combine a demographic dataset (World Population Prospects) with a sociological dataset (World Value Survey). Both cover a range of years and either all or most countries of the world. In order to join the two datasets we'll need to do do some pre-harmonization in order to get them joinable. This will consist in getting both datasets tidy, giving consistently named and coded columns on which to join them.
+
+Packages we'll use:
+```{r, message = FALSE, warning = FALSE}
+library(here)
+library(tidyverse)
+library(wpp2019)
+```
+
+# World Value Survey (WVS)
+We'll start by prepping the WVS @wvs. Download the WVS **Longitudinal** file from here: [http://www.worldvaluessurvey.org/](http://www.worldvaluessurvey.org/), which ships in 4 different data formats, including `.rds`! Download it too, and **unzip** it in the `Data` folder for this project. Let's see what's inside.
+
+The data consist in individual respondents as the unit of observation, and we'll want to get an aggregate out of it. We need to do the following operations to WVS in order to get it joinable: 
+
+1. We need to browse the documentation to figure out what variable to focus on. Ideally available in most of the individual surveys (we'll check it's mostly not missing)
+2. Age should either be in clean single ages or clean grouped ages. For simplicity we'll use 5-year age groups since WPP is already in that form.
+3. We need harmonized years. WPP gives 5-year intervals whereas WVS gives exact years. I suggest we year-group the WVS data inot 5-year bins.
+4. We need to get some sort of prevalence or mean measure per 5-year age group in some interesting variable (by year, age, sex and country). We can do this using the `summarize()` function instead of regression. Regression would be better though because we'd be able to smooth and impute missing ages.
+
+Here we read in the data, which we downloaded already in one of `R`'s native formats (`.rds`). By the way you can save an object in this format using `saveRDS()`. At this point we were also browsing the spreadsheet that comes with the data. We need that spreadsheet to know which columns to grab, since they're just alphanumeric codes. 
+```{r}
+WVS <- readRDS(
+  here::here("Data",
+             "F00008390-WVS_Longitudinal_1981_2016_r_v20180912.rds"))
+#colnames(WVS)
+# country code
+unique(WVS$S003)
+# year
+unique(WVS$S020)
+# sex
+unique(WVS$X001)
+# age
+sort(unique(WVS$X003))
+# A015 "People can be trusted"
+table(WVS$A165)
+# S017 person weight (any will do for this exercise)
+```
+
+Select ISO, Year, Age, Sex, Person Weight, Trust. `select()` can also be used to rename at the same time, it turns out, so we can turn this thing into a friendly dataset very quickly. The next step removes cases with missings (we checked and there weren't enough missings to cause worry). Then we recode (overwrite) year and age to conform to 5-year AP Lexis cells. Having done that, we're now set to tabulate in the final step of the pipe. It's a raw tabulation consisting in weighted means of the variable we picked out. The result gets a prevalence interpretation because it's between 0 and 1 and has a clear meaning like that.
+```{r}
+WVS <- 
+  WVS %>% 
+  # remove variable labels
+  zap_labels() %>% 
+  # grab variables we need
+  select(ISO = S003, 
+         year = S020, # Year
+         sex = X001, # Sex
+         age = X003, # age
+         trust = A165,
+         pwt = S017) %>%  # trust
+  #pull(sex) %>% table() # spot check for negative age
+  # remove missings, nothing fancy here, and no 
+  # reason to get hung up on it. 
+  filter(age >= 0,
+         trust > 0,
+         sex > 0) %>% 
+  # bin to 5-year Lexis cells, recoded trust
+  mutate(year = year - year %% 5,
+         age = age - age %% 5,
+         distrust = trust - 1,
+         trust = 1 - distrust) %>% 
+  # tabulate (two steps)
+  group_by(ISO, sex, year, age) %>% 
+  summarize(trust = sum(trust * pwt) / sum(pwt),
+            distrust = sum(distrust * pwt) / sum(pwt),
+            .groups = "drop")%>%
+  sjlabelled::remove_all_labels()
+```
+
+# World Population Prospects (WPP)
+The UN uses the same country codes, and ships its data as aggregates in a different shape altogether: almost tidy, but with years going out in the columns. From the `wpp2019` @wpp2019. This package consists in a bunch of datasets, including denominators, rates, and indices. We opted to calculate a Sullivan estimate of trust expectancy, and for this we'll want lifetable exposure `nLx`, which isn't included in the package. We can calculate it from `nMx`, however, which is available in two datasets: `mxF` and `mxM`. We can load them into memory by calling `data(mxF)`, for example.
+```{r}
+#install.packages("wpp2019")
+data(mxF)
+data(mxM)
+# glimpse(mxF)
+# check country code overlap, not bad!
+intersect(unique(mxF$country_code),unique(WVS$ISO))
+```
+
+The first step will be to `rbind()` the two datasets, but in order to do so we need to add a `sex` column to each of them. Looking ahead to our planned merge, let's take care to code males and females in the same way we left them from WVS.
+```{r}
+# add sex column to both datasets
+mxF <- mxF %>% 
+  mutate(sex = 2)
+mxM <- mxM %>% 
+  mutate(sex = 1)
+# bind two sexes together
+mxT <- rbind(mxF, mxM)
+```
+
+Now we're ready for the WPP pipeline, which will include some lifetable calculations. Some of them fit cleanly into `mutate()` and others are nicer to wrap in helper function like this one, which can also be used inside `mutate()`
+```{r}
+px_to_lx <- function(px){
+  n <- length(px)
+  c(1,cumprod(px)[-n])
+}
+```
+
+This pipeline has several key steps: first we use `pivot_longer()` to stack years. In the first iteration we had `cols = 4:33`, which identifies the columns to stack by integer column positions, but I've now changed it to take a continuous name range. The ``1950-1955`` is in back-ticks because otherwise it'd get misinterpreted as a numeric thing. We next use a string operation to extract the lower year bound. There are different ways we could do this, but decided to use a `substr()`. For example `subtr("Timothy", start = 1, stop = 3)` would return `"Tim"`. Inside the same `mutate()` call we do more stuff, we next define an instrumental lifetable column `AgeInt` that holds the width of age classes (we're in a standard abridged lifetable), and for that we use `case_when()`. Assuming deaths happen on average halfway through the interval (this is awful), we define the lifetable `nAx` column. With knowledge of `nMx` and `nAx` we can follow standard abridged lifetable [@preston2000demography] formulas to get `nqx`, in which case we're ready to roll into lifetable calcs. The pipe description continues below the chunk.
+
+```{r}
+# send it down the pipe
+mxT <- 
+  mxT %>% 
+  pivot_longer(cols =`1950-1955`:`2095-2100`, 
+               names_to = "year",
+               values_to = "nMx") %>% 
+  mutate(year = substr(year, 
+                       start = 1, 
+                       stop = 4),
+         year = as.integer(year),
+         # in a case_when go from the
+         # specific to the general
+         AgeInt = case_when(
+           age == 0 ~ 1,
+           age == 1 ~ 4,
+           TRUE ~ 5 # catch-all
+         ),
+         # midpoint assumption for nAx
+         nAx = AgeInt / 2,
+         # risky qx formula (could go outside [0,1]. 
+         # formula from Preston book
+         qx = ifelse(age == 100, 
+                     1,
+                     (AgeInt * nMx) / 
+           (1 + (AgeInt - nAx) * nMx))) %>% 
+  arrange(country_code, sex, year, age) %>% 
+  group_by(country_code, sex, year) %>% 
+  mutate(px = 1 - qx,
+         lx = px_to_lx(px),
+         ndx = qx * lx,
+         nLx = ndx / nMx) %>% 
+  ungroup() %>% 
+  rename(ISO = country_code) %>% 
+  filter(year >= 1980,
+         year <= 2015)
+```
+
+In the middle of the pipe we see a step `arrange()`. This function sorts rows according to the variables listed from left to write. We needed to put this here because we needed `year` to be numeric for proper sorting. We need the sorting because some lifetable calculations are sequentially dependent within age. After the sorting operation, we continue lifetables *within* subsets (ergo `group_by() + mutate()`), including our above-defined helper function `px_to_lx()`, and we needn't go further than `nLx`. Finally let's standardize one last column name and select only those years that fall within the WVS range.
+
+Now we're ready to do our join operation. Look at how much overhead was needed in order to turn these two datasets into joinable things!! The lesson: you need to have 1) identically named and 2) identically coded columns on which to join. It would have been a heck of alot easier to join if we only needed to join on ISO codes! But hey, we have super awesome detailed and nested demographic data that we wish to preserve in the name of science.
+
+# The join
+Here's the join operation. Remember we looked at the `dplyr` [Data Wrangling Cheat Sheet](https://rstudio.com/wp-content/uploads/2015/02/data-wrangling-cheatsheet.pdf) to figure out which merge operation to do.
+```{r}
+mxT <- left_join(
+  mxT,            
+  WVS, 
+  by = c("ISO","sex","year","age"))
+```
+
+A left join preserves all rows on the lefts, and adds in as many columns as fit from the right. If there are variable combinations on the right that are not found on the left, then they are lost. This is an intermediate level of efficiency for us: WPP has more countries we guess, an. We'll want to filter out all the lifetables with no `trust` observations at all, and impute the `NAs` in age gaps somehow: two operations.
+
+# Final cleaning and fun
+We need a helper function whose job it is to replace NAs with the average of neighboring cells. 
+```{r}
+na_averager <- function(age, prev){
+  ind <- is.na(prev)
+  # if nothing is missing just return prev
+  if (all(!ind)){
+    return(prev)
+  }
+  # otherwise we need to do this
+  approx(x = age[!ind],
+         y = prev[!ind],
+         xout = age, 
+         rule = 2)$y
+}
+# x <- c(15,20,25,30,35,40)
+# y <- c(NA,.3,NA,.5,.6,NA)
+# na_averager(age=x, prev = y)
+```
+
+We now start the semifinal pipeline to parse down and fill out these data. To remove superfluous lifetables, we ask for each lifetables subset (`group_by()`) whether it's the case that each value of `trust` is an `NA` (`remove`). Then we immediately throw those cases out (`filter()`). Then we impute *occassional* `NA`s using our simple helper function `na_averager()`. By the way, we wouldn't need to do that if prevalence had been modeled in the first place, as we could have ensured a full age range. Finally, we can calculate our summary index of trusty life expectancy at age 15 `e15trust` (and its complement).
+```{r}
+eTrust <- 
+  mxT %>% 
+  group_by(ISO, sex, year) %>% 
+  mutate(remove = all(is.na(trust))) %>% 
+  ungroup() %>% 
+  filter(!remove,
+         age >= 15) %>% 
+  group_by(ISO, sex, year) %>%
+  mutate(trust = na_averager(age, 
+                             prev = trust),
+         distrust = 1 - trust) %>% 
+  summarize(e15trust = sum(nLx * trust) / 
+                           lx[age == 15],
+            e15distrust = sum(nLx * distrust) / 
+                           lx[age == 15],
+            .groups = "drop") 
+```
+
+Note: dividing out `l15` is how we age condition the lifetable. It simply scales up `sum(Lx * trust)`. We may as well cap this off with a visualization of some kind. This is weird, but I propose *trust compression*, i.e. $e_{15}^{trust} / e_{15}$, i.e. on average what fraction of life is spent trustful. This is pure silliness, but the calculations are basically valid. So here we plot life expectancy in x and trust compression in y. Maybe longer lives go along with a larger fraction of life in trustfulness?
+
+```{r, message = FALSE, warning = FALSE}
+eTrust %>% 
+  mutate(e15 = e15trust + e15distrust,
+         trustcomp = e15trust / e15) %>% 
+  ggplot(mapping = aes(x = e15,
+                       y = trustcomp,
+                       color = factor(sex))) +
+  geom_point() + 
+  geom_smooth()
+```
+
+
+
+
+
+
+# References
