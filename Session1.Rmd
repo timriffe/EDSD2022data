@@ -4,10 +4,10 @@ title: |
   | Data Wrangling for EDSDers
   | \vspace{1.5cm} \LARGE\emph{Session 1}
 author: |
-  | 7-10 Nov, 2021
+  | 7-10 Nov, 2022
   | Tim Riffe
   | Universidad del País Vasco \& Ikerbasque (Basque Foundation for Science)
-date: "7 Nov, 2021"
+date: "7 Nov, 2022"
 output:
   html_document:
     number_sections: yes

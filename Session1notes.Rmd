@@ -1,0 +1,177 @@
+---
+title: "Session 1 Notes"
+author: "Tim Riffe"
+date: "2022-11-07"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# a bit about R markdown
+
+To make a code chunk, press `Ctrl Alt i` 
+```{r}
+# this bit in here is R
+```
+
+
+Because it was asked (HT Ariane)
+To comment something out, select it and press
+`Ctrl Shift c`
+
+Observe this
+
+<!-- You won't see this -->
+
+# Let's start talking about tidy data
+
+Tidy data is a data where observations are in rows and variables are in columns. It's a rectangular data format.
+
+Why? because it's easy to model (stats) and easy to map (data viz).
+
+# `gapminder` data is tidy
+
+Let's give an example of tidy data. `str()` gives lots of good metadata.
+```{r}
+# install.packages("gapminder")
+library(gapminder)
+head(gapminder)
+str(gapminder)
+```
+
+Observations here are unique combinations of country and year.
+
+You can make a pip with Ctrl Shift m.
+
+```{r}
+library(janitor)
+library(tidyverse, quietly = TRUE)
+# install.packages("tidyverse")
+clean_names(gapminder)
+
+# this is identical, to be explained later
+gapminder %>% 
+  clean_names()
+
+gapminder %>% 
+  rename(le = lifeExp,
+         gdp = gdpPercap)
+```
+
+`clean_names()` turns names into so-called snake-case, which is easier to type fast than camel case. But it's a strict output. You can do custom names with `rename()`, which follows the pattern `new = old` when renaming variables.
+
+# filtering and selecting
+
+
+```{r}
+# g1 <-
+gapminder %>% 
+  clean_names() %>% 
+  filter(life_exp > 80) #-> g1
+
+# identical to 
+# range(gapminder$gdpPercap)
+
+gapminder %>% 
+  pull(gdpPercap) %>% 
+  range()
+
+gapminder %>% 
+  clean_names() %>% 
+  filter(between(life_exp, 50, 80),
+         gdp_percap > 5000)
+```
+
+Filtering can be one one or more logical condition, referring to columns in the data or not. If there is more than one condition, then these can either be `&`-separated, i.e. `x & y & z`, or comma-separated (which I prefer because it allows nicer line-breaks) like so `filter(x,y,z)`. There are helper functions for these equality tests, to see a list of them, look at `?between`. `&`, `|`, `>`,`>=`, `==`, `<`,`<=`. `any()`, `all()`, `!`, `!=`, `%in%`.
+
+Set membership is a neat one, `%in%`.
+```{r}
+gapminder %>% 
+  filter(country %in% c("Afghanistan","Burundi","Jamaica"))
+
+
+gapminder_unfiltered %>% 
+  clean_names() %>% 
+  filter(grepl(country, pattern = "stan")) %>% 
+  pull(country) %>% 
+  as.character() %>% 
+  unique()
+
+```
+
+Selecting is for picking out columns. You can do so positively, negatively, by name, by position, for multiple things, etc.
+```{r}
+gapminder %>% 
+  clean_names() %>% 
+  select(country, life_exp)
+
+gapminder %>% 
+  clean_names() %>% 
+  select(-continent)
+
+gapminder %>% 
+  select(starts_with("c"))
+
+gapminder %>% 
+  clean_names() %>% 
+  select(-pop, -gdp_percap)
+```
+
+Concepts you've seen so far:
+`filter()` , `select()`, `pull()`, 
+and helpers:
+`starts_with()`, `between()`, `contains()` bla bla
+
+`mutate()`, `group_by()`, `summarize()`,`pivot_longer()`, `pivot_wider()`.
+
+# `mutate()`
+
+`mutate()` does things to columns. It changes a column, or it makes a new one. It does *not* change the rows. You can do multiple operations in a `mutate()` call, comma separated, and they can have sequential dependencies, meaning you can use things that you just made.
+```{r}
+gapminder %>% 
+  clean_names() %>% 
+  mutate(gdp = pop * gdp_percap,
+         gdp_lifetime = gdp_percap * life_exp,
+         gdp_100 = 100 * gdp_percap,
+         lgdp = log(gdp),
+         big_or_rich = gdp > 1e11)
+```
+
+You can also calculate variables for groups, while staying in the original row format of the data, i.e. without shrinking it down to just the group stats. Observe: Let's calculate the decade avg gdp_percap.
+
+```{r}
+0:10 - 0:10 %% 5
+0:10 %% 5
+gapminder %>% 
+  clean_names() %>% 
+  mutate(decade = year - year %% 10) %>% 
+  group_by(country, decade) %>% 
+  mutate(gdp_percap_10 = mean(gdp_percap),
+         gdp_percap_10w = sum(gdp_percap * pop) / sum(pop))
+```
+
+
+Groups are strict- not just for calculating, but also for filtering and anything else we're talking about now, see:
+```{r}
+gapminder %>% 
+  clean_names() %>% 
+  group_by(year) %>%  # this is strict!
+  filter(life_exp == max(life_exp)) %>% 
+  ungroup() %>% 
+  arrange(year)
+
+gapminder %>% 
+  arrange(country,-year)
+```
+
+# `summarize()`
+
+
+
+
+
+
+
+
