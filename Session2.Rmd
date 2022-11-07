@@ -4,10 +4,10 @@ title: |
   | Data Wrangling for EDSDers
   | \vspace{1.5cm} \LARGE\emph{Flat files}
 author: |
-  | 8-11 Nov, 2021
+  | 7-10 Nov, 2022
   | Tim Riffe
   | Universidad del País Vasco \& Ikerbasque (Basque Foundation for Science)
-date: "9 Nov, 2021"
+date: "8 Nov, 2022"
 output:
   html_document:
     number_sections: yes
@@ -37,7 +37,7 @@ Flat files refer to large fixed-width format text files that typically contain i
 2. Spain [ine.es](https://ine.es/dyngs/INEbase/es/operacion.htm?c=Estadistica_C&cid=1254736177008&menu=resultados&secc=1254736195450&idp=1254735573002) This link for mortality, but there are other pages for marriage, natality, and other things.
 
 
-Download the USA 2018 Natality file, and unzip it in the Data folder (around 5Gb). You can rezip it if you want as a `.gz` file or similar, if you want to have it take up less space. We'll just read in selected columns and then do fun things from there. This is really quite fast and easy to do using the `readr` package and browsing the data documentation.
+Download the USA 2021 Natality file and save it in the `Data` folder (around 200Mb when zipped). It will take up much more memory when we read it in. We'll just read in selected columns and then do fun things from there. This is really quite fast and easy to do using the `readr` package and browsing the data documentation.
 
 Load packages
 ```{r, message = FALSE, warning = FALSE}
@@ -45,18 +45,49 @@ library(tidyverse)
 library(readr)
 ```
 
+If you're daring you can download it from `R` like so, note you need to give it more than the default 60 seconds to download, so we increase the time allowed using `options(timeout = 400)`- you may need more time depending on your connection speed. I just copy-pasted this url. If you download it manually, and prefer that, that's OK, just extract the text file and run the last bit of code here to g-zip it, then delete the text file.
+```{r, warning = FALSE, eval = FALSE}
+library(R.utils)
+library(here)
+file_url <- "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Datasets/DVS/natality/Nat2021us.zip"
+
+options(timeout=400)
+download.file(url = file_url, 
+              destfile = "Data/nat2021us.zip",
+              mode = "wb",
+              overwrite = TRUE)
+
+# now unzip it (it's ~5Gb!)
+# we use here() because this function apparently wants absolute file paths
+unzip(zipfile = here("Data/nat2021us.zip"),
+             exdir = here("Data"), 
+             overwrite = TRUE,
+      # TR: I needed to tell it where my unzip program was...YMMV
+             unzip = Sys.which("unzip"))
+
+# now re-save as .gz so we can read it directly. This function
+# comes from R.utils package...
+gzip("Data/nat2021us.txt")
+
+# and go ahead and delete the uncompressed text file. 
+# You could also delete the zip version..
+unlink("Data/nat2021us.txt")
+```
+
+
 # Reading a fixed width file
 Give `read_fwf()` a whirl. This worked on the first try after glancing at the options in the help file (type `?read_fwf` in the console).
 ```{r}
+
 pos <- fwf_positions(
          start = c(9, 13, 19, 21, 23, 75, 147), 
          end = c(12, 14, 20, 22, 23, 76, 148), 
          col_names = c("year", "month", "hour","minute","weekday","mage","fage"))
 
-NAT <- read_fwf(
-  here::here("Data","Nat2018PublicUS.c20190509.r20190717.txt"), 
+NAT <- read_fwf("Data/nat2021us.txt.gz", 
   col_positions = pos,
   col_types = "iiiiiii")
+
 print(object.size(NAT), units ="Mb")
 
 ```
@@ -64,7 +95,7 @@ print(object.size(NAT), units ="Mb")
 The pre-step `fwf_positions()` is a helper function to tell `read_fwf()` where the columns are that we want to extract. This is the quickest and lightest option, since we don't have to read in the whole dataset, which would max out memory on machines under 4Gb of memory. I got the column positions (`start` and `end` vectors) from the pdf documentation that one can download alongside the data. If the providers were a bit more polite they would provide the column positions in a spreadsheet, but this wasn't so arduous. By reading in just columns we're interested in the data object is kept lighter and easier to work with. Data like this really shouldn't cause hangups when using these tools. There are other tricks one can use for truly large data, but we've not got into those. 
 
 # Redistribute missing time of day
-Check missing time: 316 cases
+Check missing time: 332 cases
 ```{r}
 NAT %>% 
   filter(minute == 99,
@@ -109,7 +140,7 @@ NAT <- NAT %>%
 ```
 
 # Visualize it: surface
-Now we've redistributed births of unknown time of day according to the distribution of known time of day within each mother age. The *within* part of this was dealt with by the `group_by(mage)` statement, where one could add another variable or two to make it finer. However, already for mother age under ca 15 or over ca 35, we're not filling each minute of the day with observations. Were we to zoom in we might even observeminute heaping...
+Now we've redistributed births of unknown time of day according to the distribution of known time of day within each mother age. The *within* part of this was dealt with by the `group_by(mage)` statement, where one could add another variable or two to make it finer. However, already for mother age under ca 15 or over ca 35, we're not filling each minute of the day with observations. Were we to zoom in we might even observe minute heaping...
 
 ```{r, warning = FALSE, message = FALSE}
 library(lubridate)
@@ -142,7 +173,8 @@ NAT %>%
   # of much of our noise problem
   mutate(min10 = minute - minute %% 10) %>% 
   group_by(mage, hour, min10) %>% 
-  summarize(bfrac = sum(bfrac)) %>% 
+  summarize(bfrac = sum(bfrac),
+            .groups = "drop") %>% 
   ungroup() %>% 
   # now declare hourmin time variable
   mutate(time = paste(hour, min10, sep = ":"),
@@ -166,6 +198,12 @@ NAT %>%
 OK, we could sense some of this variation in the surface plot, but here it's a but clearer I think: the 8:00 peak gets sharper as mother age increases, and the 13:00 also emerges with age.
 
 If you don't know what you want to do for your assignment, you might ask: how much of this pattern is due to cesarians? For that, just repeat the same thing twice and plot a double-ridge as we did for ASFR: if they don't overlap it'll be obvious. Does this pattern have month seasonality? It is identical for boy and girl births? This is very rich data and you're sure to find something interesting in it. 
+
+Do you find this data too noisy when plotted by single minutes? Try grouping to 5-minute bins. Recall the modulo trick (`%%`).
+
+Or you could aggregate for a few years and tell me whether the distribution has changed over time. Or during the pandemic? 
+
+Or you could look at the birth weight distribution by .... You get the idea, there are tons of exremely interesting things you could explore and plot in this data, any of which would suffice for an assignment.
 
 # References
 
