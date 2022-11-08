@@ -87,22 +87,47 @@ my_graduatation_hack <- function(chunk){
                       asfr = y_out)
   return(chunk_out)
 }
-# my_graduatation_hack(chunk)
-# plot(x,y,type='s')
-# lines(15:49, y_out)
+
+chunk <- ASFR %>% 
+  filter(loc_id == 4,
+         year == 1973)
+chunk_out <- my_graduatation_hack(chunk)
+
+plot(chunk$age, chunk$asfr, type = 's')
+lines(chunk_out$age, chunk_out$asfr)
 ```
 
 Now we can apply this function for all subsets after a `group_by()`, and note that what we include in the grouping variables we also keep.
 
 ```{r}
-
-ASFR %>% 
+ASFR1 <-
+  ASFR %>% 
   group_by(country, year, loc_id) %>% 
-  group_modify(~ my_graduatation_hack(chunk = .x))
-
-
+  group_modify(~ my_graduatation_hack(chunk = .x)) %>% 
+  ungroup()
 ```
 
+Now we aim to plot for each TFR level the distribution that belongs to the highest and lowest mean age at childbearing.
+
+Weighted mean general formula
+$$
+\bar{x} = \frac{\sum x \cdot w}{\sum w}
+$$
+
+```{r}
+ASFR1 %>% 
+  group_by(country, year, loc_id) %>% 
+  mutate(tfr = sum(asfr),
+         mab = sum((age+.5) * asfr) / sum(asfr)) %>% 
+  ungroup() %>% 
+  # quick diagnostic to make sure we don't have
+  # obviously pathological points in the data, 
+  # TR says it looks passable
+ # filter(age == 20) %>% 
+ # ggplot(aes(x = tfr, y = mab)) +
+ # geom_point()
+ mutate(tfr_interval = tfr - tfr %% .1)
+```
 
 
 
