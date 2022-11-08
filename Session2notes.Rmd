@@ -87,7 +87,7 @@ my_graduatation_hack <- function(chunk){
                       asfr = y_out)
   return(chunk_out)
 }
-
+# example usage
 chunk <- ASFR %>% 
   filter(loc_id == 4,
          year == 1973)
@@ -115,22 +115,40 @@ $$
 $$
 
 ```{r}
+asfr_extremes <-
 ASFR1 %>% 
   group_by(country, year, loc_id) %>% 
   mutate(tfr = sum(asfr),
          mab = sum((age+.5) * asfr) / sum(asfr)) %>% 
-  ungroup() %>% 
-  # quick diagnostic to make sure we don't have
-  # obviously pathological points in the data, 
-  # TR says it looks passable
- # filter(age == 20) %>% 
- # ggplot(aes(x = tfr, y = mab)) +
- # geom_point()
- mutate(tfr_interval = tfr - tfr %% .1)
+ ungroup() %>% 
+ mutate(tfr_interval = tfr - tfr %% .2) %>% 
+ group_by(tfr_interval) %>% 
+ #filter(mab %in% range(mab))
+ mutate(extreme = case_when(
+                    mab == max(mab) ~ "max",
+                    mab == min(mab) ~ "min",
+                    TRUE ~ NA_character_
+ )) %>% 
+ ungroup() %>% 
+ filter(!is.na(extreme))
 ```
 
+mini explanation of `case_when()`. You list conditions (meaning that you need expressions that evaluate to logical, meaning they return TRUE or FALSE), in order from the most specific to the most general. All cases must be handled. You can close it out with TRUE, because TRUE evaluates to TRUE meaning "everything else".
 
+Now let's make the ridge plot to compare distributions.
+```{r}
+library(ggridges)
 
+asfr_extremes %>% 
+  filter(between(tfr, 1.2, 6)) %>% 
+  ggplot(mapping = aes(x = age,
+                       y = factor(tfr_interval),
+                       height = asfr,
+                       fill = extreme)) +
+  geom_ridgeline(alpha = .5,
+                 scale = 2)
+
+```
 
 
 
