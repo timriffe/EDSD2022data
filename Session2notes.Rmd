@@ -1,0 +1,111 @@
+---
+title: "session 2 notes"
+author: "Tim Riffe"
+date: "2022-11-08"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+```{r, eval = FALSE}
+url_download_trigger_thingy <-
+"http://data.un.org/Handlers/DocumentDownloadHandler.ashx?id=319&t=bin"
+
+options(timeout = 200)
+download.file(
+  url = url_download_trigger_thingy,
+  destfile = "Data/un_fertility.xls"
+)
+
+```
+
+Read in the data using `readxl`
+
+```{r}
+library(tidyverse)
+library(readxl)
+library(janitor)
+ASFR <- read_excel(path = "Data/un_fertility.xls",
+           skip = 4,
+           na = "..") %>% 
+  select(country = "...1",
+         LocID = "...2",
+         Year,
+         "15" = "15-19",
+         "20" = "20-24",
+         "25" = "25-29",
+         "30" = "30-34",
+         "35" = "35-39",
+         "40" = "40-44",
+         "45" = "45-49"
+         ) %>% 
+  pivot_longer(`15`:`45`,
+               # 4:10
+               names_to = "age",
+               values_to = "asfr") %>% 
+  clean_names() %>% 
+  mutate(asfr = asfr / 1000)
+```
+
+Now we have read in the fertility rates, and standardized names and reshaped to a workable format, so they are tidy but not clean, boo. That's because there are anomalous cases in the data where synthetic indicators are available but no age-specific rates. So we begin by filtering out those cases.
+
+```{r}
+ASFR <-
+ASFR %>% 
+  filter(! is.na(asfr)) %>% 
+  group_by(country, year) %>% 
+  #mutate(n = n()) %>% 
+  # keep only subsets where we 
+  # have at least 5 age groups
+  filter(n() >= 5) %>% 
+  mutate(age = as.integer(age)) %>% 
+  ungroup()
+
+```
+
+
+We make a custom graduation function based on running a monotonic spline through the cumulative fertility rate curve, taking care to scale up the rates in the cumulative distribution and align them properly with the hard right side of each age group. Further, we anchor the endpoints with fertility rates of 0 at some declared ages. Then we predict for single ages within the original range of the data.
+```{r}
+
+my_graduatation_hack <- function(chunk){
+  x <- chunk$age
+  y <- chunk$asfr 
+  
+  Y <- cumsum(c(0,y,0)) * 5
+  X <- c(14,x+5,55)
+  
+  y_out <-
+     splinefun(x = X,
+               y = Y, 
+               method = "monoH.FC")(14:49) %>% 
+     diff()
+  
+  chunk_out <- tibble(age = 15:49,
+                      asfr = y_out)
+  return(chunk_out)
+}
+# my_graduatation_hack(chunk)
+# plot(x,y,type='s')
+# lines(15:49, y_out)
+```
+
+Now we can apply this function for all subsets after a `group_by()`, and note that what we include in the grouping variables we also keep.
+
+```{r}
+
+ASFR %>% 
+  group_by(country, year, loc_id) %>% 
+  group_modify(~ my_graduatation_hack(chunk = .x))
+
+
+```
+
+
+
+
+
+
+
