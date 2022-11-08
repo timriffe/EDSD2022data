@@ -47,7 +47,7 @@ You can make a pip with Ctrl Shift m.
 
 ```{r}
 library(janitor)
-library(tidyverse, quietly = TRUE)
+suppressPackageStartupMessages(library(tidyverse))
 # install.packages("tidyverse")
 clean_names(gapminder)
 
