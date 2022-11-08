@@ -13,7 +13,7 @@ output:
     number_sections: yes
     toc: no
 params:
-  output_dir: "../EDSD2021data/docs"
+  output_dir: "../EDSD2022data/docs"
 header-includes:
 - \usepackage{titling}
 - \pretitle{\begin{center}\includegraphics[trim=0 0 0 8cm, width=6cm, ]{assets/MPIDR_square_color.pdf}\\[\bigskipamount]}
