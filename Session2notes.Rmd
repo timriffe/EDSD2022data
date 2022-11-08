@@ -69,7 +69,8 @@ ASFR %>%
 
 We make a custom graduation function based on running a monotonic spline through the cumulative fertility rate curve, taking care to scale up the rates in the cumulative distribution and align them properly with the hard right side of each age group. Further, we anchor the endpoints with fertility rates of 0 at some declared ages. Then we predict for single ages within the original range of the data.
 ```{r}
-
+# TR: note we still have odd behavior on some tails.
+# so this function is not a final solution to the problem.
 my_graduatation_hack <- function(chunk){
   x <- chunk$age
   y <- chunk$asfr 

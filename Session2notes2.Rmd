@@ -1,0 +1,54 @@
+---
+title: "session 2 flat files"
+author: "Tim Riffe"
+date: "2022-11-08"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# flat files
+
+Flat files are read in using metadata on columns positions and widths. That's why we download the pdf manual. If they were polite they would give a spreadsheet of column positions and widths, but they deliver it in a pdf to be jerks.
+
+```{r}
+library(readr)
+
+fwf_metadata <- fwf_positions(start = c(19,21,75),
+                              end = c(20,22,76), 
+                              col_names = c("hour","minute","mage"))
+
+NAT <- read_fwf("Data/nat2021us.txt.gz", 
+                col_positions = fwf_metadata)
+# examine this knarly data to get a sense of it.
+#readLines("Data/nat2021us.txt.gz",n = 10)
+
+
+NAT %>% 
+  group_by(mage,hour,minute) %>% 
+  summarize(births = n(),
+            .groups = "drop") %>% 
+  mutate(time = as.POSIXct(
+                  paste(hour, 
+                        minute, 
+                        sep = ":"),
+                  format = "%H:%M")) %>% 
+  ggplot(aes(x = time, y = mage, fill = births)) +
+  geom_tile()
+```
+
+Exercise:
+
+1. Instead of births, plot the fraction of births at each time of day for each mother age.
+
+2. plot it as a ridge plot. Hahahaha. Maybe every 5th mother age? And maybe just 15-45?
+
+3. break it down by cesarean status. Meaning that the distributions should be by both age and cesariean status. Plot these side-by-side in a ridge plot just like we did for asfr before.
+
+
+
+
+
+
