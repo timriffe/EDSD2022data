@@ -439,7 +439,7 @@ ASFR <- read_excel(
     na = "..", 
     skip = 4) %>% # Ctrl + Shift + m
   select(1:13) %>% 
-  dplyr::rename("Country" = "...1", "ISO" = "...2",
+  dplyr::rename("Country" = "...1", "LocID" = "...2",
                      "PeriodVerbose" = "...3","TFR" = "...6",
                      "15" = "15-19","20" = "20-24",
                      "25" = "25-29","30" = "30-34",
@@ -490,7 +490,9 @@ We will try the monotonic spline method because it seems easier to write fresh, 
 mono_graduate <- function(Age5, asfr5){
   
   # assume NAs are 0s, sometimes these are found 
-  # in the first or last age groups.
+  # in the first or last age groups. 
+  # Rather than setting to 0, we could also throw these out,
+  # and adapt Age5 variable made below...
   asfr5[is.na(asfr5)] <- 0
   # anchor the endpoints (added double anchor)
   Age5                <- c(13,14, Age5+4, 50,51)
@@ -511,7 +513,7 @@ mono_graduate <- function(Age5, asfr5){
   tibble(Age = 15:49, 
          asfr = diff(xy))
 }
-chunk <- filter(ASFR, ISO == 4, Year == 1973)
+chunk <- filter(ASFR, LocID == 4, Year == 1973)
 plot(mono_graduate(Age5 = chunk$Age,
               asfr5 = chunk$asfr))
 ```
@@ -521,7 +523,7 @@ Great now we have a spline function, let's see if we can figure out how to use i
 ```{r, message=FALSE}
 ASFR1 <-
   ASFR %>% 
-  group_by(Country, ISO, Year) %>% 
+  group_by(Country, LocID, Year) %>% 
   group_modify(~mono_graduate(.x$Age, .x$asfr)) %>% 
   ungroup() 
 
@@ -537,7 +539,7 @@ library(ggpointdensity)
 library(colorspace)
 ASFR1 <-
   ASFR1 %>% 
-  group_by(Country, ISO, Year) %>% 
+  group_by(Country, LocID, Year) %>% 
   mutate(MAB = sum(Age * asfr) / sum(asfr),
             TFR = sum(asfr),
             .groups = "drop") 
@@ -554,15 +556,16 @@ Now we start with the exercise. We bin TFRs into some intervals, let's just say 
 ```{r}
 
 ASFRex <- ASFR1 %>% 
-  filter(MAB > 20) %>% 
+ # filter(MAB > 20) %>% 
   mutate(TFRint = TFR - TFR %% .25) %>% 
   group_by(TFRint) %>% 
   mutate(extremes = case_when(
                       MAB == max(MAB) ~ "max",
                       MAB == min(MAB) ~ "min",
-                      TRUE ~ as.character(NA)
+                      TRUE ~ NA_character_
   )) %>% 
  filter(!is.na(extremes))
+
 ```
 
 Now this is something we can plot! Let's use the `ggridges` package to bring in the ridgeplot geom.
