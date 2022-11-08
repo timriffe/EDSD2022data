@@ -74,8 +74,8 @@ my_graduatation_hack <- function(chunk){
   x <- chunk$age
   y <- chunk$asfr 
   
-  Y <- cumsum(c(0,y,0)) * 5
-  X <- c(14,x+5,55)
+  Y <- cumsum(c(0,0,y,0,0)) * 5
+  X <- c(13,14,x+5,55,56)
   
   y_out <-
      splinefun(x = X,
