@@ -416,12 +416,26 @@ Let's download this spreadsheet and figure out how to work with it! The exercise
 
 [http://data.un.org/DocumentData.aspx?id=319](http://data.un.org/DocumentData.aspx?id=319)
 
-Download the spreadsheet and stick it in a new folder called `Data`. We're going to figure this thing out.
+Download the spreadsheet and stick it in a new folder called `Data`. We're going to figure this thing out. For the intrepid, you can create the folder and automatically download the data like so:
+
+```{r, eval = FALSE}
+if (!dir.exists("Data")){
+  dir.create("Data")
+}
+data_download_trigger_url <-
+  "http://data.un.org/Handlers/DocumentDownloadHandler.ashx?id=319&t=bin"
+# give R some extra time in case we have choppy connection
+options(timeout = 200)
+# download triggers properly with above url
+download.file(url = data_download_trigger_url,
+              destfile = "Data/un_fertility.xls")
+```
+
 
 ```{r}
 library(readxl)
 ASFR <- read_excel(
-  "Data/Age-specific fertility rates, Total fertility and .xls", 
+  "Data/un_fertility.xls", 
     na = "..", 
     skip = 4) %>% # Ctrl + Shift + m
   select(1:13) %>% 
