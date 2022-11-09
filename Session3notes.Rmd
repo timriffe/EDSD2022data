@@ -13,7 +13,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 
 ```{r}
-
+library(tidyverse)
 a <- tibble(age = rep(0:10,2), 
             sex = rep(c("m","f"), each = 11),
             value = runif(22))
@@ -56,26 +56,105 @@ mx1dt <- read_csv("Data/mx1dt.csv")
 ```
 
 ```{r}
-mx1dt %>% 
+wpp_lt <-
+  # take the rates data
+  mx1dt %>% 
+  # stack sex 
   pivot_longer(c(mxM,mxF,mxB),
                names_to = "sex",
                values_to = "mx") %>% 
+  # recode sex
   mutate(sex = case_when(
                  sex == "mxM" ~ "m",
                  sex == "mxF" ~ "f",
                  sex == "mxB" ~ "t")) %>% 
+  # ensure age is sorted within subsets
+  # because some lifetable calculations require this
   arrange(country_code, sex, year, age) %>% 
+  # calculate a few of the lifetable columns where age
+  # is independent (note no groups declared!)
   mutate(ax = ifelse(age == 0, .1, .5),
          qx = mx / (1 + (1 - ax) * mx),
          px = 1 - qx) %>% 
+  # declare groups for the sake of lx
   group_by(country_code, year, sex) %>% 
+  # we stop at Lx cuz that's all we need
+  # for Sullivan
   mutate(lx = c(1,cumprod(px))[-n()],
          dx = -diff(c(lx,0)),
          Lx = dx / mx)
 ```
 
+# get the WVS data
 
+```{r}
+load("Data/WVS.rdata")
 
+print(object.size(mx1dt), units = "Mb")
+print(object.size(WVS_TimeSeries_1981_2022_spss_v3_0), units = "Gb")
+
+WVS <- WVS_TimeSeries_1981_2022_spss_v3_0
+rm(WVS_TimeSeries_1981_2022_spss_v3_0)
+
+head(WVS[,1:10])
+#colnames(WVS)
+# X001 sex
+# X003 age
+# S020 year
+# S017 person weight
+# F123 justifiable suicide
+```
+
+```{r}
+WVS2 <- 
+WVS %>% 
+  select(ISO3 = COUNTRY_ALPHA,
+         year = S020,
+         sex = X001,
+         age = X003,
+         weight = S017,
+         suicide = F123)
+
+#write_csv(WVS2, file = "Data/WVS2.csv")
+```
+
+```{r}
+
+WVS_tab <-
+  WVS2 %>% 
+  filter(suicide > 0,
+         sex > 0,
+         age >= 0) %>% 
+  mutate(age = age - age %% 5) %>% 
+  group_by(ISO3, year, sex, age) %>% 
+  summarize(persons = sum(weight),
+            never = sum(weight[suicide == 1]),
+            sometimes = sum(weight[between(suicide,2,5)]),
+            .groups = "drop") %>% 
+  mutate(p_never = never / persons,
+         p_sometimes = sometimes / persons)
+
+# WVS_tab %>% 
+
+  # ggplot(aes(x = age, 
+  #            y = p_never, 
+  #            color = year, 
+  #            linetype = factor(sex),
+  #            groups = interaction(year, sex))) +
+  # geom_line()
+```
+
+# before we merge we need to harmonize
+
+```{r}
+wpp_lt <- 
+  wpp_lt %>% 
+  mutate(age = age - age %% 5) %>% 
+  group_by(country_code, name, year, sex, age) %>% 
+  summarize(Lx = sum(Lx),
+            .groups = "drop")
+
+```
 
 
 
