@@ -68,8 +68,9 @@ NAT %>%
          minute = minute - minute %% 5,
          mage = mage - mage %% 5) %>% 
   group_by(mage, hour, minute, cesc) %>% 
-  summarize(births = n(),
+  summarize(births = n(), 
             .groups = "drop") %>% 
+  #ungroup() %>% 
   mutate(time = as.POSIXct(
                   paste(hour, 
                         minute, 
