@@ -176,20 +176,65 @@ WVS_tab <-
   WVS_tab %>% 
   mutate(sex = if_else(sex == 1, "m", "f"))
 
+#
 wpp_lt %>% 
   left_join(WVS_tab, by = c("ISO3","year","sex","age")) %>% 
   group_by(ISO3, year, sex) %>% 
   filter(!all(is.na(persons)),
-         between(age, 20,75)) %>% 
+         between(age, 0,75)) %>% 
   ungroup() %>% 
   mutate(p_never = if_else(is.na(p_never), 0, p_never),
-         p_sometimes = if_else(is.na(p_sometimes), 0, p_sometimes))
+         p_sometimes = if_else(is.na(p_sometimes), 0, p_sometimes)) %>% 
+  group_by(ISO3, year, sex) %>% 
+  summarize(e_total = sum(Lx),
+            e_never = sum(Lx * p_never),
+            e_sometimes = sum(Lx * p_sometimes),
+            .groups = "drop") %>% 
+  select(ISO3, year, sex, e_total) %>% 
+  pivot_wider(names_from = sex, values_from = e_total) %>% 
+  ggplot(aes(x = f, 
+             y = m, 
+             color = year, 
+             group = interaction(ISO3,year))) +
+    geom_point() +
+  geom_abline(slope = 1,intercept = 0)
 
 
 
 ```
 
+# Exercise (optional)
 
+
+1. just plot men and women separately and compare two expectancies:
+
+```{r}
+wpp_lt %>% 
+  left_join(WVS_tab, by = c("ISO3","year","sex","age")) %>% 
+  group_by(ISO3, year, sex) %>% 
+  filter(!all(is.na(persons)),
+         between(age, 0,75)) %>% 
+  ungroup() %>% 
+  mutate(p_never = if_else(is.na(p_never), 0, p_never),
+         p_sometimes = if_else(is.na(p_sometimes), 0, p_sometimes)) %>% 
+  group_by(ISO3, year, sex) %>% 
+  summarize(e_total = sum(Lx),
+            e_never = sum(Lx * p_never),
+            e_sometimes = sum(Lx * p_sometimes),
+            .groups = "drop") %>% 
+  ggplot(aes(x = e_never, 
+             y = e_sometimes, 
+             color = year, 
+             group = interaction(year, ISO3))) +
+  geom_point() +
+  facet_wrap(~sex)
+```
+
+2. Join something else
+
+I suggest to take the gapminder data and join it to some expectancies from this exercise. Make a scatterplot of gdp_percap versus your expectancy. Do you find a Preston-like curve?
+
+3. Work on those assignments.
 
 
 
