@@ -168,8 +168,23 @@ wpp_lt <-
   filter(!is.na(ISO3))
 ```
 
-# the merge
+# the merge, at last
+
+Actually the merge part of this is rather small. Data joins are really only tricky in the prep required to make the join variables conformable. Really the join itself it usually a 1-liner.
 ```{r}
+WVS_tab <- 
+  WVS_tab %>% 
+  mutate(sex = if_else(sex == 1, "m", "f"))
+
+wpp_lt %>% 
+  left_join(WVS_tab, by = c("ISO3","year","sex","age")) %>% 
+  group_by(ISO3, year, sex) %>% 
+  filter(!all(is.na(persons)),
+         between(age, 20,75)) %>% 
+  ungroup() %>% 
+  mutate(p_never = if_else(is.na(p_never), 0, p_never),
+         p_sometimes = if_else(is.na(p_sometimes), 0, p_sometimes))
+
 
 
 ```
