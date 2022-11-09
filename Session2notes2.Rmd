@@ -27,7 +27,7 @@ NAT <- read_fwf("Data/nat2021us.txt.gz",
 
 
 NAT %>% 
-  group_by(mage,hour,minute) %>% 
+  group_by(mage, hour, minute) %>% 
   summarize(births = n(),
             .groups = "drop") %>% 
   mutate(time = as.POSIXct(
@@ -45,9 +45,55 @@ Exercise:
 
 2. plot it as a ridge plot. Hahahaha. Maybe every 5th mother age? And maybe just 15-45?
 
-3. break it down by cesarean status. Meaning that the distributions should be by both age and cesariean status. Plot these side-by-side in a ridge plot just like we did for asfr before.
+3. break it down by cesarean status. Meaning that the distributions should be by both age and cesarean status. Plot these side-by-side in a ridge plot just like we did for asfr before.
 
+```{r}
+library(readr)
+library(tidyverse)
+fwf_metadata <- fwf_positions(start = c(19,21,75,408),
+                              end = c(20,22,76,408), 
+                              col_names = c("hour","minute","mage","cesc"))
 
+NAT <- read_fwf("Data/nat2021us.txt.gz", 
+                col_positions = fwf_metadata)
+head(NAT)
+
+cesc_compare <-
+NAT %>% 
+  # remove unknown Cesarean
+  filter(cesc != 9) %>% 
+  # recode Cesarean and bin to 5-minutes
+  mutate(cesc = if_else(cesc == 1,"no","yes"),
+         minute = as.integer(minute),
+         minute = minute - minute %% 5,
+         mage = mage - mage %% 5) %>% 
+  group_by(mage, hour, minute, cesc) %>% 
+  summarize(births = n(),
+            .groups = "drop") %>% 
+  mutate(time = as.POSIXct(
+                  paste(hour, 
+                        minute, 
+                        sep = ":"),
+                  format = "%H:%M")) %>% 
+  group_by(mage, cesc) %>% 
+  mutate(bfrac = births / sum(births))
+  
+```
+
+Now plot it!
+
+```{r}
+library(ggridges)
+cesc_compare
+
+cesc_compare %>% 
+  filter(between(mage, 15,40)) %>% 
+  ggplot(mapping = aes(x = time, 
+                       y = as.factor(mage), 
+                       height = bfrac, 
+                       fill = cesc)) +
+  geom_ridgeline(alpha = .3, scale = 60)
+```
 
 
 
