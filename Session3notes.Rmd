@@ -156,6 +156,24 @@ wpp_lt <-
 
 ```
 
+# first get codes to match
+```{r}
+library(countrycode)
+countrycode("422", origin = "un", destination = "iso3c")
+wpp_lt <-
+  wpp_lt %>% 
+  mutate(ISO3 = countrycode(country_code, 
+                            origin = "un", 
+                            destination = "iso3c")) %>% 
+  filter(!is.na(ISO3))
+```
+
+# the merge
+```{r}
+
+
+```
+
 
 
 
