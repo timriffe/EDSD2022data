@@ -1,0 +1,86 @@
+---
+title: "Session 3 notes"
+author: "Tim Riffe"
+date: "2022-11-09"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## merging
+
+
+```{r}
+
+a <- tibble(age = rep(0:10,2), 
+            sex = rep(c("m","f"), each = 11),
+            value = runif(22))
+b <- tibble(age = sample(0:15, 
+                         size = 30,
+                         replace = TRUE),
+            sex = sample(c("m","f"), 
+                         size = 30,
+                         replace = TRUE),
+            value2 = sample(c(T,F),30,replace = TRUE))
+b %>% 
+  arrange(sex,age)
+
+# throw nothing away, plug in NAs as needed
+full_join(a,b,by = c("age","sex"))
+
+# keep only matches
+inner_join(a, b, by = c("age","sex"))
+
+# treat one as dominant
+left_join(a, b, by = c("age", "sex"))
+
+#right_join(b, a)
+left_join(b, a, by = c("age","sex"))
+```
+
+# download and install stuff
+
+```{r, eval = FALSE}
+library(remotes)
+install_github("PPgp/wpp2022")
+```
+
+```{r}
+# library(wpp2022)
+# data("mx1dt")
+# mx1dt$name %>% unique()
+library(readr)
+mx1dt <- read_csv("Data/mx1dt.csv")
+```
+
+```{r}
+mx1dt %>% 
+  pivot_longer(c(mxM,mxF,mxB),
+               names_to = "sex",
+               values_to = "mx") %>% 
+  mutate(sex = case_when(
+                 sex == "mxM" ~ "m",
+                 sex == "mxF" ~ "f",
+                 sex == "mxB" ~ "t")) %>% 
+  arrange(country_code, sex, year, age) %>% 
+  mutate(ax = ifelse(age == 0, .1, .5),
+         qx = mx / (1 + (1 - ax) * mx),
+         px = 1 - qx) %>% 
+  group_by(country_code, year, sex) %>% 
+  mutate(lx = c(1,cumprod(px))[-n()],
+         dx = -diff(c(lx,0)),
+         Lx = dx / mx)
+```
+
+
+
+
+
+
+
+
+
+
+
