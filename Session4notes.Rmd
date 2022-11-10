@@ -1,0 +1,152 @@
+---
+title: "Session 4 scratch"
+author: "Tim Riffe"
+date: "2022-11-10"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Review of concepts
+
+We have seen a mix of basic `tidyverse` functions that when used together creatively can get 90% of our data wrangling needs done. By this I mean everything in between the raw data up until an analysis of some kind (or in our case a visualization). Let's review what these were and concoct a working example where requested.
+
+## `filter()`
+
+For subsetting rows; can be done inside of groups, or on the data as a whole. The trick is to figure out the *logical* statement needed to do the subsetting.
+
+## `select()`
+Is for columns. You can rename at the same time, woot
+
+## `mutate()`
+Is for making or changing columns. You can define or calculate in it. We don't grow or shrink rows. And you should be conscientious about whether or not you have groups in the data. We have used this in different ways. Recall the time-of-day distribution calcs-- those were in mutate and we scaled at will depending on the group definitions.
+
+## `summarize()`
+is for creating synthetic aggregates, which might mean just tabulating, but it could be used for other sorts of groups stats. Meaning we use it usually within groups. We used it for microdata tabulation, calculation TFR, MAB, and for the WVS aggregates for prevalence (based on summing person weights).
+
+## `pivot_longer()` 
+Is for stacking column ranges. It implies turning a range (or set) of columns into TWO new columns: one that collects the names and another that collects the values. Super duper handy, because the spreadsheet world like wider data, and we need this function to make it tidy.
+
+## `pivot_wider()` 
+Is the opposite of the above, and we might use it in a few ways. You can use this whenever you want to get variables *next to* each other. You would also maybe use this to spread out data in a Lexis-like array for saving and sharing with the spreadsheet world.
+
+## `inner_join()`, `full_join()`, `left_join()`
+We use these functions for merging datasets, the trick is to get column names the same in both sources, and make sure they have the same structure in those columns. `inner_join()` is the strict one: only keep exact matches. `full_join()` is the generous one, don't throw anything away. `left_join()` (`right_join()`) treat the first (second) object as dominant, meaning that it can't lose cases.
+
+Toy example to demonstrate different behavior
+```{r}
+library(tidyverse)
+a <- tibble(x = c(0,1,2,0,1,2), y = rep(c("m","f"), each = 3),
+            z = runif(6))
+b <- tibble(x = c(0,0,3,4,0,2,1),
+            y = sample(c("m","f"), size = 7, replace = TRUE),
+            value = rnorm(7))
+
+inner_join(a,b) # 5 cases
+full_join(a,b) # 9 cases, NAs plugged in
+left_join(a,b) # 7. expand a as needed, 
+               # take what you can from b, plugging
+               # in NAs as needed
+right_join(a,b) # also 7 but not the same ones
+```
+
+# `case_when()`
+Is just like `ifelse()`, `if_else()` except you can handle more cases at a time.
+
+```{r}
+x <- runif(10)
+ifelse(x > .5, "yay", "boo")
+if_else(x > .5, "yay", "boo")
+```
+
+The trick for `case_when()` to either have the individual cases be mutually exclusive and exhaustive OR if you have conditions with overlap, move from general to specific. Example of buzz-ping, where you name a sequence of integers in order. If divisible by 5 say buzz, if divisible by 7 say ping, and if divisible by both say buzz-ping! We demonstate that the order of the conditions matters! Strategy: for complex recodes, frame it from specific cases to the most general, and don't forget to leave a catch-all at the end (TRUE).
+
+```{r}
+x <- 1:50
+case_when(x %% 5 == 0 & x %% 7 == 0 ~ "buzz-ping",
+          x %% 5 == 0 ~ "buzz",
+          x %% 7 == 0 ~ "ping",
+          TRUE ~ as.character(x))
+
+case_when(x %% 5 == 0 ~ "buzz",
+          x %% 7 == 0 ~ "ping",
+          x %% 5 == 0 & x %% 7 == 0 ~ "buzz-ping",
+          TRUE ~ as.character(x))
+
+case_when(x %% 7 == 0 ~ "ping",
+          x %% 5 == 0 ~ "buzz",
+          x %% 5 == 0 & x %% 7 == 0 ~ "buzz-ping",
+          TRUE ~ as.character(x))
+```
+
+## `readr` and `readxl`
+
+`readr` gives `read_csv()`, not to be confused with `read.csv()`. Use `read_csv()` to prevent headaches. It also gives `read_tsv()`, `read_fwf()`, and many more. Try getting the list with autocomplete.
+
+The `haven` package gives functions to read in proprietary file formats.
+
+Be clear about `NA` delimiters when you read in data.
+
+## ggplot()
+
+```{r}
+library(gapminder)
+library(colorspace)
+
+hcl_palettes(plot = TRUE)
+
+gapminder %>% 
+  ggplot(aes(x = gdpPercap, 
+             y = lifeExp)) +
+  geom_point(mapping = aes(
+             group = country,
+             size = sqrt(pop)),
+            alpha = .2) +
+  #scale_color_manual(values = c())
+  scale_colour_discrete_qualitative("Set 2") +
+  #geom_smooth() +
+  scale_x_log10() +
+  facet_wrap(~continent)
+
+
+  # facet_grid(rows = vars(gender),
+  #            cols = vars(edu))
+```
+
+You can learn more with the Healy book: socviz.co
+Or the cheat sheets (dplyr, tidyr, readr, ggplot2, etc)
+Or the graph galleries
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
