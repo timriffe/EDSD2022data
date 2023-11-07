@@ -120,6 +120,19 @@ Or the cheat sheets (dplyr, tidyr, readr, ggplot2, etc)
 Or the graph galleries
 
 
+A data.frame is a list. A tibble is a list.
+```{r}
+a <- tibble(x = 1:10, y = letters[1:10])
+a$x    # vector
+a[,1]  # tibble
+a[,"x"] # tibble
+a[["x"]]
+
+
+```
+
+
+
 
 
 
